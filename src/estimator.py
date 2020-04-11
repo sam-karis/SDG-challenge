@@ -1,6 +1,5 @@
 
 def calculate_estimate(data, factor=512, level='impact'):
-    print(data)
     res = {}
     if level == 'impact':
         res['currentlyInfected'] = data['reportedCases'] * 10
@@ -8,6 +7,10 @@ def calculate_estimate(data, factor=512, level='impact'):
     elif level == 'severImpact':
         res['currentlyInfected'] = data['reportedCases'] * 50
         res['infectionsByRequestedTime'] = res['currentlyInfected'] * factor
+
+    available_beds = round(0.35 * data['totalHospitalBeds'])
+    res['severeCasesByRequestedTime'] = 0.15 * res['infectionsByRequestedTime']
+    res['hospitalBedsByRequestedTime'] = available_beds - res['severeCasesByRequestedTime']
     return res
 
 
