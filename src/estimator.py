@@ -22,10 +22,10 @@ def calculate_estimate(data, converted_time, level='impact'):
         0.05 * res['infectionsByRequestedTime'])
     res['casesForVentilatorsByRequestedTime'] = int(
         0.02 * res['infectionsByRequestedTime'])
-    res['dollarsInFlight'] = round(
-        res['infectionsByRequestedTime'] * data['region']['avgDailyIncomeInUSD'] *
-        data['region']['avgDailyIncomePopulation'] * converted_time, 2
-    )
+    dollars_in_flight = res['infectionsByRequestedTime'] * \
+        data['region']['avgDailyIncomePopulation'] * \
+        data['region']['avgDailyIncomeInUSD']
+    res['dollarsInFlight'] = int(dollars_in_flight / converted_time)
     return res
 
 
