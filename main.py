@@ -1,6 +1,11 @@
+import time
+from csv import writer
 from xml.etree.ElementTree import Element, tostring
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from starlette.requests import Request
 from xmljson import badgerfish as bf
@@ -26,17 +31,43 @@ class RequestData(BaseModel):
     totalHospitalBeds: int
 
 
-@app.post('/api/v1/on-covid-19')
+def append_request_log_as_row(file_name, list_of_elem):
+    # Open file in append mode
+    with open(file_name, 'a+', newline='') as write_obj:
+        # Create a writer object from csv module
+        csv_writer = writer(write_obj, delimiter='\t')
+        # Add contents of list as last row in the csv file
+        csv_writer.writerow(list_of_elem)
+
+
+def record_performance_logs(func):
+    def wrapper(request: Request, body: RequestData, response: Response):
+        start_time = time.perf_counter()
+        result = func(request, body, response)
+        execution_time = f'{(time.perf_counter() - start_time) * 1000 :0.2f} ms'
+        log = [request.method, request.url.path,
+               response.status_code, execution_time]
+        append_request_log_as_row('request_logs.csv', log)
+        return result
+    return wrapper
+
+
+@app.post('/api/v1/on-covid-19/')
 @app.post('/api/v1/on-covid-19/json')
 @app.post('/api/v1/on-covid-19/xml')
-def estimate_covid_19(request: Request, body: RequestData):
+@record_performance_logs
+def estimate_covid_19(request: Request, body: RequestData, response: Response):
     result = estimator(body.dict())
+    response.status_code = status.HTTP_200_OK
     if request.url.path.endswith('xml'):
-        result = bf.etree(result, root=Element('html'))
+        result = bf.etree(result, root=Element('xml'))
         result = tostring(result)
-    return result
+        return Response(content=result, media_type="application/xml")
+    return JSONResponse(content=result, media_type="application/json")
 
 
 @app.get('/api/v1/on-covid-19/logs')
-def endpoint_logs():
-    pass
+def endpoint_logs(response: Response):
+    file_csv = open('request_logs.csv', 'rb')
+    response.headers['charset'] = 'UTF-8'
+    return StreamingResponse(file_csv, media_type='text/plain')
