@@ -1,11 +1,10 @@
 import time
-from csv import writer
+from csv import reader, writer
 from xml.etree.ElementTree import Element, tostring
 
 from fastapi import FastAPI, Response, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 from starlette.requests import Request
 from xmljson import badgerfish as bf
@@ -67,7 +66,12 @@ def estimate_covid_19(request: Request, body: RequestData, response: Response):
 
 
 @app.get('/api/v1/on-covid-19/logs')
-def endpoint_logs(response: Response):
-    file_csv = open('request_logs.csv', 'rb')
-    response.headers['charset'] = 'UTF-8'
-    return StreamingResponse(file_csv, media_type='text/plain')
+def endpoint_logs():
+    with open('request_logs.csv', 'r') as csv_obj:
+        csv_reader = reader(csv_obj)
+        text = ''
+        for row in csv_reader:
+            text += '\t'.join(row)
+            text += '\n'
+        text = text.replace('\t', '\t\t')
+    return PlainTextResponse(text)
