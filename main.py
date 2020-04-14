@@ -4,7 +4,7 @@ from xml.etree.ElementTree import Element, tostring
 
 from fastapi import FastAPI, Response, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 from starlette.requests import Request
 from xmljson import badgerfish as bf
@@ -38,26 +38,30 @@ def append_request_log_as_row(file_name, list_of_elem):
         # Add contents of list as last row in the csv file
         csv_writer.writerow(list_of_elem)
 
-
+## Should be upgraded to remove duplications ##
 def record_performance_logs(func):
     def wrapper(request: Request, body: RequestData, response: Response):
         start_time = time.perf_counter()
         result = func(request, body, response)
-        execution_time = f'{(time.perf_counter() - start_time) * 1000 :0.2f}ms'
+        execution_time = (time.perf_counter() - start_time) * 1000
         log = [request.method, request.url.path,
-               response.status_code, execution_time]
+               response.status_code,
+               f'{str(int(execution_time)).zfill(2)}ms']
         append_request_log_as_row('request_logs.csv', log)
         return result
     return wrapper
 
 
+
+## Should be upgraded to remove duplications ##
 def record_performance_for_logs_endpoint(func):
     def wrapper(request: Request, response: Response):
         start_time = time.perf_counter()
         result = func(request, response)
-        execution_time = f'{(time.perf_counter() - start_time) * 1000 :0.2f}ms'
+        execution_time = (time.perf_counter() - start_time) * 1000
         log = [request.method, request.url.path,
-               response.status_code, execution_time]
+               response.status_code,
+               f'{str(int(execution_time)).zfill(2)}ms']
         append_request_log_as_row('request_logs.csv', log)
         return result
     return wrapper
@@ -80,14 +84,12 @@ def estimate_covid_19(request: Request, body: RequestData, response: Response):
 @app.get('/api/v1/on-covid-19/logs')
 @record_performance_for_logs_endpoint
 def endpoint_logs(request: Request, response: Response):
-    # with open('request_logs.csv', 'r') as csv_obj:
-    #     csv_reader = reader(csv_obj)
-    #     text = ''
-    #     for row in csv_reader:
-    #         text += '\t'.join(row)
-    #         text += '\n'
-    #     text = text.replace('\t', '\t\t')
+    with open('request_logs.csv', 'r') as csv_obj:
+        csv_reader = reader(csv_obj)
+        text = ''
+        for row in csv_reader:
+            text += '\t'.join(row)
+            text += '\n'
+        text = text.replace('\t', '\t\t')
     response.status_code = status.HTTP_200_OK
-    # return PlainTextResponse(text)
-    csv_file = open('request_logs.csv', 'rb')
-    return StreamingResponse(csv_file, media_type='text/plain')
+    return PlainTextResponse(text)
